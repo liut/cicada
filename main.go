@@ -30,8 +30,7 @@ func getRC(uri string) RedisClient {
 }
 
 const (
-	prefix     = "dns-a-"
-	expiration = time.Hour * 24 * 7
+	prefix = "dns-a-"
 )
 
 func getKey(name string) string {
@@ -74,12 +73,14 @@ func main() {
 		dsn  string
 		name string
 		ip   string
+		days uint
 		serv bool
 	)
 	flag.IntVar(&port, "port", 1353, "listen port")
 	flag.StringVar(&dsn, "dsn", envOr("CIDNS_REDIS_DSN", "redis://localhost:6379/0"), "redis connection string")
 	flag.StringVar(&name, "name", "", "host for add")
 	flag.StringVar(&ip, "ip", "", "ip for add")
+	flag.UintVar(&days, "days", 7, "expire in some days")
 	flag.BoolVar(&serv, "serv", false, "run as dns server")
 	flag.Parse()
 
@@ -95,6 +96,7 @@ func main() {
 	} else {
 		rc := getRC(dsn)
 		key := getKey(name)
+		expiration := time.Hour * 24 * time.Duration(days)
 		err := rc.Set(context.Background(), key, ip, expiration).Err()
 		if err != nil {
 			log.Error().Err(err).Msg("add record fail")
