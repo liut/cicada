@@ -8,6 +8,9 @@ A dns server for CI/CD
 ```bash
 sudo apt install redis-server
 
+# build
+make dist
+
 # usage
 ./cidns -h
 
