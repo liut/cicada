@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/miekg/dns"
@@ -34,7 +35,7 @@ const (
 )
 
 func getKey(name string) string {
-	return prefix + name
+	return prefix + strings.TrimRight(name, ".")
 }
 
 type handler struct {
