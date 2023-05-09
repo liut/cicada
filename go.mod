@@ -1,4 +1,4 @@
-module hyyl.xyz/services/cidns
+module hyyl.xyz/platform/cidns
 
 go 1.20
 
