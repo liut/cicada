@@ -15,7 +15,7 @@ sudo apt install redis-server
 ./cidns -name feature-dev.mycom.work -ip 172.18.19.3 -days 10
 
 # start dns server
-./cidns -serv -port=1353
+./cidns -serv -port=1153
 
 
 # test
