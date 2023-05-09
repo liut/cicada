@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/miekg/dns"
 	redis "github.com/redis/go-redis/v9"
@@ -29,7 +30,8 @@ func getRC(uri string) RedisClient {
 }
 
 const (
-	prefix = "dns-a-"
+	prefix     = "dns-a-"
+	expiration = time.Hour * 24 * 7
 )
 
 func getKey(name string) string {
@@ -67,15 +69,38 @@ var (
 )
 
 func main() {
-	var port int
-	var dsn string
+	var (
+		port int
+		dsn  string
+		name string
+		ip   string
+		serv bool
+	)
 	flag.IntVar(&port, "port", 1353, "listen port")
 	flag.StringVar(&dsn, "dsn", envOr("CIDNS_REDIS_DSN", "redis://localhost:6379/0"), "redis connection string")
-	srv := &dns.Server{Addr: ":" + strconv.Itoa(port), Net: "udp"}
-	srv.Handler = &handler{getRC(dsn)}
-	log.Info().Str("version", version).Msg("starting")
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal().Err(err).Msg("fail to udp listen")
+	flag.StringVar(&name, "name", "", "host for add")
+	flag.StringVar(&ip, "ip", "", "ip for add")
+	flag.BoolVar(&serv, "serv", false, "run as dns server")
+	flag.Parse()
+
+	log.Info().Str("version", version).Int("port", port).Msg("starting")
+	if serv {
+		srv := &dns.Server{Addr: ":" + strconv.Itoa(port), Net: "udp"}
+		srv.Handler = &handler{getRC(dsn)}
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatal().Err(err).Msg("fail to udp listen")
+		}
+	} else if len(name) == 0 || len(ip) == 0 {
+		flag.Usage()
+	} else {
+		rc := getRC(dsn)
+		key := getKey(name)
+		err := rc.Set(context.Background(), key, ip, expiration).Err()
+		if err != nil {
+			log.Error().Err(err).Msg("add record fail")
+		} else {
+			log.Info().Msg("add record ok")
+		}
 	}
 }
 
