@@ -11,6 +11,7 @@ import (
 
 	"github.com/miekg/dns"
 	redis "github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -68,6 +69,14 @@ var (
 	version = "dev"
 )
 
+func init() {
+	zerolog.TimestampFieldName = "t"
+	zerolog.LevelFieldName = "l"
+	zerolog.MessageFieldName = "m"
+	if version == "dev" {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
+}
 func main() {
 	var (
 		port int
@@ -85,7 +94,7 @@ func main() {
 	flag.BoolVar(&serv, "serv", false, "run as dns server")
 	flag.Parse()
 
-	log.Info().Str("version", version).Int("port", port).Msg("starting")
+	log.Info().Str("ver", version).Int("port", port).Msg("starting")
 	if serv {
 		srv := &dns.Server{Addr: ":" + strconv.Itoa(port), Net: "udp"}
 		srv.Handler = &handler{getRC(dsn)}
