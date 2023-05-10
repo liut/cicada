@@ -1,0 +1,107 @@
+image: fhyx/golang:edge
+
+stages:
+  - lint
+  - build
+  - deploy
+
+services:
+  - name: redis:5-alpine
+    alias: redis
+variables:
+  DEVELOP_HOST: moon.hyyl.co
+  DEPLOY_HOST: earth.hyyl.co
+  DEPLOY_USER: sa
+  DEPLOY_ROOT: /opt/cidns
+  CGO_ENABLED: '0'
+  GO111MODULE: 'on'
+  GOPATH: /cache/go
+  GOPRIVATE: daxv.cn,fhyx.tech,hyyl.xyz
+  GOPROXY: https://goproxy.cn,https//goproxy.io,direct
+  NAME: cidns
+  ROOF: hyyl.xyz/platform/cidns
+  SUFFIX: hyyl.ci
+  CIDNS_REDIS_DSN: 'redis://redis:6379/0'
+  REGISTRY: "hyyl.xyz"
+
+before_script:
+  # SSH
+  - mkdir -p ~/.ssh
+  - test -f /secret/sa_id_ecdsa && cp /secret/sa_id_ecdsa ~/.ssh/id_ecdsa || (echo "$SSH_PRIVATE_KEY") > ~/.ssh/id_ecdsa
+  - chmod 0600 ~/.ssh/id_ecdsa
+  - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  # - ls -al ~/.ssh/
+  - eval $(ssh-agent -s)
+
+  - which git && git config --global url."git@git.hyyl.xyz:".insteadOf "https://git.hyyl.xyz/"
+  # - nslookup git.hyyl.xyz
+
+  # Go Environments
+  - which go && go env
+
+  - export DATE=$(date '+%Y%m%d')
+  - export TAG="${DATE}-${CI_COMMIT_SHORT_SHA}-${CI_JOB_ID}"
+  - export DEV_BRANCH="${CI_COMMIT_BRANCH//\//-}"
+  - echo "${DEV_BRANCH} ${TAG}"
+  - echo -e "Host ${DEVELOP_HOST:-moon}\n\tPort ${DEVELOP_PORT:-22}\n\tUser ${DEVELOP_USER:-sa}\n\n" >> ~/.ssh/config
+  - echo -e "Host ${DEPLOY_HOST:-earth}\n\tPort ${DEPLOY_PORT:-22}\n\tUser ${DEPLOY_USER:-sa}\n\n" >> ~/.ssh/config
+
+test-lint:
+  stage: lint
+  services: []
+  script:
+    - test -f ${GOPATH}/bin/golangci-lint || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+    - go vet ./... && ${GOPATH}/bin/golangci-lint run --disable structcheck ./...
+
+build-binary:
+  stage: build
+  services: []
+  variables:
+    GOOS: linux
+    GOARCH: amd64
+  script:
+    - export LDFLAGS="-X main.version=${TAG}"
+    - mkdir -p dist/linux_amd64
+    - go build -ldflags "${LDFLAGS} -s -w" -o dist/linux_amd64/${NAME} ${CI_PROJECT_DIR}
+  artifacts:
+  #   name: "${CI_PROJECT_PATH_SLUG}_${CI_JOB_ID}"
+    paths:
+      - dist
+
+deploy-to-docker:
+  image: docker:20
+  stage: deploy
+  services:
+    - docker:20-dind
+  script:
+   - export NAME_BASE="${CI_PROJECT_ROOT_NAMESPACE}-${CI_PROJECT_NAME}-${DEV_BRANCH}"
+   - export CONTAINER_IMAGE="${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}:${DEV_BRANCH}"
+   - cp Dockerfile dist/
+   - ls -al dist/*
+   - docker build -t ${CONTAINER_IMAGE} dist
+   - docker run -d --network cinet --name "${NAME_BASE}-redis" redis:5-alpine || true
+   - docker rm -f ${NAME_BASE} || true
+   - docker run -d --network cinet --name "${NAME_BASE}" -e "CINET_REDIS_DSN=redis://redis:6379/0" --link "${NAME_BASE}-redis:redis" ${CONTAINER_IMAGE}
+   - export APP_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${NAME_BASE})
+   - echo $APP_IP
+   - docker exec ${NAME_BASE} ./${NAME} -name ${NAME_BASE}.${SUFFIX} -ip $APP_IP
+  dependencies:
+    - build-binary
+  when: manual
+
+deploy-to-testing:
+  stage: deploy
+  services: []
+  script:
+   - go install daxv.cn/gopak/tencent-api-go/apps/wxworkbot@latest
+   - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d dist || mkdir dist"
+   - scp dist/linux_amd64/${NAME} ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon}:dist/
+   - ssh ${DEVELOP_USER:-sa}@${DEVELOP_HOST:-moon} "test -d ${DEPLOY_ROOT}/bin && sudo install dist/${NAME} ${DEPLOY_ROOT}/bin/ && sudo systemctl restart '${NAME}*'"
+   - test -z "${WXWORK_BOT_KEY}" || ${GOPATH}/bin/wxworkbot -text "deploy ${NAME} to testing ${TAG}"
+  dependencies:
+    - build-binary
+  only:
+    - main
+  # when: on_success
+  when: manual
+

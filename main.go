@@ -62,7 +62,9 @@ func (h *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			log.Info().Err(err).Msg("query dns")
 		}
 	}
-	w.WriteMsg(&msg)
+	if err := w.WriteMsg(&msg); err != nil {
+		log.Warn().Err(err).Send()
+	}
 }
 
 var (
@@ -111,7 +113,7 @@ func main() {
 		if err != nil {
 			log.Error().Err(err).Msg("add record fail")
 		} else {
-			log.Info().Msg("add record ok")
+			log.Info().Str("name", name).Str("ip", ip).Msg("add record ok")
 		}
 	}
 }

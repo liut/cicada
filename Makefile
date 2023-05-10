@@ -4,7 +4,7 @@
 WITH_ENV = env `cat .env 2>/dev/null | xargs`
 
 NAME:=cidns
-ROOF:=hyyl.xyz/cupola/cidns
+ROOF:=hyyl.xyz/platform/cidns
 SOURCES=$(shell find . -type f \( -name "*.go" ! -name "*_test.go" \) -print )
 DATE := $(shell date '+%Y%m%d')
 TAG:=$(shell git describe --tags --always)
@@ -33,7 +33,7 @@ deps:
 	GO111MODULE=on $(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
 lint:
-	GO111MODULE=$(GOMOD) golangci-lint run --disable structcheck -v ./pkg/...
+	GO111MODULE=$(GOMOD) golangci-lint run --disable structcheck -v ./...
 
 clean:
 	echo "Cleaning dist"
@@ -72,4 +72,4 @@ dist-clean: clean
 
 start:
 	mkdir -p dist
-	$(WITH_ENV) rerun -build -rundir dist -watch ./pkg $(ROOF) web
+	$(WITH_ENV) rerun -build -rundir dist -watch ./ $(ROOF) -serv
