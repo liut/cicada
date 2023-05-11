@@ -97,9 +97,15 @@ func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func (h *mux) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	if req.Method == http.MethodPut {
+	// TODO: put a new A
+}
 
+func newA(name, ip string, ttl uint) *dns.A {
+	a := &dns.A{
+		Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: uint32(ttl)},
+		A:   net.ParseIP(ip),
 	}
+	return a
 }
 
 var (
@@ -145,11 +151,7 @@ func main() {
 	} else {
 		h := newMux(dsn)
 		expiration := time.Hour * 24 * time.Duration(days)
-		a := &dns.A{
-			Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: uint32(ttl)},
-			A:   net.ParseIP(ip),
-		}
-		err := h.Set(a, expiration)
+		err := h.Set(newA(name, ip, ttl), expiration)
 		if err != nil {
 			log.Error().Err(err).Msg("add record fail")
 		} else {
