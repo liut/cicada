@@ -48,8 +48,8 @@ type Muxier interface {
 	dns.Handler
 	http.Handler
 
-	Get(name string, rtype uint16) (string, error)
-	Set(name, ip string, expiration time.Duration) error
+	Get(name string, rtype uint16) (dns.RR, error)
+	Set(rr dns.RR, expiration time.Duration) error
 }
 
 type mux struct {
@@ -60,30 +60,32 @@ func newMux(dsn string) Muxier {
 	return &mux{getRC(dsn)}
 }
 
-func (h *mux) Get(name string, rtype uint16) (string, error) {
+func (h *mux) Get(name string, rtype uint16) (dns.RR, error) {
 	key := getKey(name, rtype)
 	res := h.rc.Get(context.Background(), key)
-	return res.Result()
+	s, err := res.Result()
+	if err != nil {
+		return nil, err
+	}
+	return dns.NewRR(s)
 }
 
-func (h *mux) Set(name, ip string, expiration time.Duration) error {
-	key := getKey(name, dns.TypeA)
-	return h.rc.Set(context.Background(), key, ip, expiration).Err()
+func (h *mux) Set(rr dns.RR, expiration time.Duration) error {
+	key := getKey(rr.Header().Name, rr.Header().Rrtype)
+	return h.rc.Set(context.Background(), key, rr.String(), expiration).Err()
 }
 
 func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := dns.Msg{}
 	msg.SetReply(r)
-	switch r.Question[0].Qtype {
-	case dns.TypeA:
+	msg.Compress = false
+	switch r.Opcode {
+	case dns.OpcodeQuery:
 		msg.Authoritative = true
 		domain := msg.Question[0].Name
-		address, err := h.Get(domain, dns.TypeA)
+		rr, err := h.Get(domain, dns.TypeA)
 		if err == nil {
-			msg.Answer = append(msg.Answer, &dns.A{
-				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
-				A:   net.ParseIP(address),
-			})
+			msg.Answer = append(msg.Answer, rr)
 		} else {
 			log.Info().Err(err).Msg("query dns")
 		}
@@ -117,6 +119,7 @@ func main() {
 		dsn  string
 		name string
 		ip   string
+		ttl  uint
 		days uint
 		serv bool
 	)
@@ -124,6 +127,7 @@ func main() {
 	flag.StringVar(&dsn, "dsn", envOr("CIDNS_REDIS_DSN", "redis://localhost:6379/0"), "redis connection string")
 	flag.StringVar(&name, "name", "", "host for add")
 	flag.StringVar(&ip, "ip", "", "ip for add")
+	flag.UintVar(&ttl, "ttl", 60, "time to live of renew cache")
 	flag.UintVar(&days, "days", 7, "expire in some days")
 	flag.BoolVar(&serv, "serv", false, "run as dns server")
 	flag.Parse()
@@ -140,7 +144,11 @@ func main() {
 	} else {
 		h := newMux(dsn)
 		expiration := time.Hour * 24 * time.Duration(days)
-		err := h.Set(name, ip, expiration)
+		a := &dns.A{
+			Hdr: dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: uint32(ttl)},
+			A:   net.ParseIP(ip),
+		}
+		err := h.Set(a, expiration)
 		if err != nil {
 			log.Error().Err(err).Msg("add record fail")
 		} else {
