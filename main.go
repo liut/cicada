@@ -78,17 +78,18 @@ func (h *mux) Set(rr dns.RR, expiration time.Duration) error {
 func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := dns.Msg{}
 	msg.SetReply(r)
-	msg.Compress = false
 	switch r.Opcode {
 	case dns.OpcodeQuery:
 		msg.Authoritative = true
-		domain := msg.Question[0].Name
-		rr, err := h.Get(domain, dns.TypeA)
-		if err == nil {
-			msg.Answer = append(msg.Answer, rr)
-		} else {
-			log.Info().Err(err).Msg("query dns")
+		for _, q := range msg.Question {
+			rr, err := h.Get(q.Name, q.Qtype)
+			if err == nil {
+				msg.Answer = append(msg.Answer, rr)
+			} else {
+				log.Info().Err(err).Msg("query dns")
+			}
 		}
+
 	}
 	if err := w.WriteMsg(&msg); err != nil {
 		log.Warn().Err(err).Send()
