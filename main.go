@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -39,20 +40,41 @@ func getKey(name string) string {
 	return prefix + strings.TrimRight(name, ".")
 }
 
-type handler struct {
+type Muxier interface {
+	dns.Handler
+	http.Handler
+
+	Get(name string) (string, error)
+	Set(name, ip string, expiration time.Duration) error
+}
+
+type mux struct {
 	rc RedisClient
 }
 
-func (h *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+func newMux(dsn string) Muxier {
+	return &mux{getRC(dsn)}
+}
+
+func (h *mux) Get(name string) (string, error) {
+	key := getKey(name)
+	res := h.rc.Get(context.Background(), key)
+	return res.Result()
+}
+
+func (h *mux) Set(name, ip string, expiration time.Duration) error {
+	key := getKey(name)
+	return h.rc.Set(context.Background(), key, ip, expiration).Err()
+}
+
+func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := dns.Msg{}
 	msg.SetReply(r)
 	switch r.Question[0].Qtype {
 	case dns.TypeA:
 		msg.Authoritative = true
 		domain := msg.Question[0].Name
-		key := getKey(domain)
-		res := h.rc.Get(context.Background(), key)
-		address, err := res.Result()
+		address, err := h.Get(domain)
 		if err == nil {
 			msg.Answer = append(msg.Answer, &dns.A{
 				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
@@ -65,6 +87,10 @@ func (h *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	if err := w.WriteMsg(&msg); err != nil {
 		log.Warn().Err(err).Send()
 	}
+}
+
+func (h *mux) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	// TODO: for PUT a name
 }
 
 var (
@@ -99,17 +125,16 @@ func main() {
 	log.Info().Str("ver", version).Int("port", port).Msg("starting")
 	if serv {
 		srv := &dns.Server{Addr: ":" + strconv.Itoa(port), Net: "udp"}
-		srv.Handler = &handler{getRC(dsn)}
+		srv.Handler = newMux(dsn)
 		if err := srv.ListenAndServe(); err != nil {
 			log.Fatal().Err(err).Msg("fail to udp listen")
 		}
 	} else if len(name) == 0 || len(ip) == 0 {
 		flag.Usage()
 	} else {
-		rc := getRC(dsn)
-		key := getKey(name)
+		h := newMux(dsn)
 		expiration := time.Hour * 24 * time.Duration(days)
-		err := rc.Set(context.Background(), key, ip, expiration).Err()
+		err := h.Set(name, ip, expiration)
 		if err != nil {
 			log.Error().Err(err).Msg("add record fail")
 		} else {

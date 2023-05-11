@@ -79,9 +79,9 @@ deploy-to-docker:
    - cp Dockerfile dist/
    - ls -al dist/*
    - docker build -t ${CONTAINER_IMAGE} dist
-   - docker run -d --network cinet --name "${NAME_BASE}-redis" redis:5-alpine || true
+   - docker run -m 64m -d --network cinet --name "${NAME_BASE}-redis" redis:5-alpine || true
    - docker rm -f ${NAME_BASE} || true
-   - docker run -d --network cinet --name "${NAME_BASE}" -e "CINET_REDIS_DSN=redis://redis:6379/0" --link "${NAME_BASE}-redis:redis" ${CONTAINER_IMAGE}
+   - docker run -m 64m -d --network cinet --name "${NAME_BASE}" -e "CINET_REDIS_DSN=redis://redis:6379/0" --link "${NAME_BASE}-redis:redis" ${CONTAINER_IMAGE}
    - export APP_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${NAME_BASE})
    - echo $APP_IP
    - docker exec ${NAME_BASE} ./${NAME} -name ${NAME_BASE}.${SUFFIX} -ip $APP_IP
