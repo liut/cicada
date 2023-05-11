@@ -33,18 +33,22 @@ func getRC(uri string) RedisClient {
 }
 
 const (
-	prefix = "dns-a-"
+	prefix = "dns-"
 )
 
-func getKey(name string) string {
-	return prefix + strings.TrimRight(name, ".")
+func getKey(name string, rtype uint16) string {
+	return prefix + typeToString(rtype) + "-" + strings.TrimRight(name, ".")
+}
+
+func typeToString(rtype uint16) string {
+	return strings.ToLower(dns.Type(rtype).String())
 }
 
 type Muxier interface {
 	dns.Handler
 	http.Handler
 
-	Get(name string) (string, error)
+	Get(name string, rtype uint16) (string, error)
 	Set(name, ip string, expiration time.Duration) error
 }
 
@@ -56,14 +60,14 @@ func newMux(dsn string) Muxier {
 	return &mux{getRC(dsn)}
 }
 
-func (h *mux) Get(name string) (string, error) {
-	key := getKey(name)
+func (h *mux) Get(name string, rtype uint16) (string, error) {
+	key := getKey(name, rtype)
 	res := h.rc.Get(context.Background(), key)
 	return res.Result()
 }
 
 func (h *mux) Set(name, ip string, expiration time.Duration) error {
-	key := getKey(name)
+	key := getKey(name, dns.TypeA)
 	return h.rc.Set(context.Background(), key, ip, expiration).Err()
 }
 
@@ -74,7 +78,7 @@ func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	case dns.TypeA:
 		msg.Authoritative = true
 		domain := msg.Question[0].Name
-		address, err := h.Get(domain)
+		address, err := h.Get(domain, dns.TypeA)
 		if err == nil {
 			msg.Answer = append(msg.Answer, &dns.A{
 				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
@@ -90,7 +94,9 @@ func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func (h *mux) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// TODO: for PUT a name
+	if req.Method == http.MethodPut {
+
+	}
 }
 
 var (
