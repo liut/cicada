@@ -3,8 +3,8 @@
 
 WITH_ENV = env `cat .env 2>/dev/null | xargs`
 
-NAME:=cidns
-ROOF:=hyyl.xyz/platform/cidns
+NAME:=cicada
+ROOF:=hyyl.xyz/platform/cicada
 SOURCES=$(shell find . -type f \( -name "*.go" ! -name "*_test.go" \) -print )
 DATE := $(shell date '+%Y%m%d')
 TAG:=$(shell git describe --tags --always)
@@ -38,7 +38,7 @@ lint:
 clean:
 	echo "Cleaning dist"
 	rm -rf dist
-	rm -f ./$(NAME)-*
+	rm -f $(NAME)-*
 
 showver:
 	echo "version: $(TAG)"

@@ -1,1 +1,1 @@
-cidns: rerun -build -rundir dist -watch ./ . -serv
+serv: rerun -build -rundir dist -watch ./ . -serv

@@ -18,7 +18,7 @@ variables:
   GOPATH: /cache/go
   GOPRIVATE: daxv.cn,fhyx.tech,hyyl.xyz
   GOPROXY: https://goproxy.cn,https//goproxy.io,direct
-  NAME: cidns
+  NAME: cicada
   ROOF: hyyl.xyz/platform/cidns
   SUFFIX: hyyl.ci
   CIDNS_REDIS_DSN: 'redis://redis:6379/0'

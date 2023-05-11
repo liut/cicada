@@ -1,4 +1,4 @@
-module hyyl.xyz/platform/cidns
+module hyyl.xyz/platform/cicada
 
 go 1.20
 

@@ -131,7 +131,7 @@ func main() {
 		serv bool
 	)
 	flag.IntVar(&port, "port", 1353, "listen port")
-	flag.StringVar(&dsn, "dsn", envOr("CIDNS_REDIS_DSN", "redis://localhost:6379/0"), "redis connection string")
+	flag.StringVar(&dsn, "dsn", envOr("CICADA_REDIS_DSN", "redis://localhost:6379/0"), "redis connection string")
 	flag.StringVar(&name, "name", "", "host for add")
 	flag.StringVar(&ip, "ip", "", "ip for add")
 	flag.UintVar(&ttl, "ttl", 60, "time to live of renew cache")
