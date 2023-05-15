@@ -9,8 +9,6 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
-	"hyyl.xyz/platform/cicada/xdns"
 )
 
 var (
@@ -47,16 +45,16 @@ func main() {
 	log.Info().Str("ver", version).Int("port", port).Msg("starting")
 	if serv {
 		srv := &dns.Server{Addr: ":" + strconv.Itoa(port), Net: "udp"}
-		srv.Handler = xdns.NewMux(dsn)
+		srv.Handler = NewMux(dsn)
 		if err := srv.ListenAndServe(); err != nil {
 			log.Fatal().Err(err).Msg("fail to udp listen")
 		}
 	} else if len(name) == 0 || len(ip) == 0 {
 		flag.Usage()
 	} else {
-		h := xdns.NewMux(dsn)
+		h := NewMux(dsn)
 		expiration := time.Hour * 24 * time.Duration(days)
-		err := h.Set(xdns.NewA(name, ip, ttl), expiration)
+		err := h.Set(NewA(name, ip, ttl), expiration)
 		if err != nil {
 			log.Error().Err(err).Msg("add record fail")
 		} else {
