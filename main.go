@@ -38,7 +38,7 @@ func main() {
 	flag.StringVar(&name, "name", "", "host for add")
 	flag.StringVar(&ip, "ip", "", "ip for add")
 	flag.UintVar(&ttl, "ttl", 60, "time to live of renew cache")
-	flag.UintVar(&days, "days", 7, "expire in some days")
+	flag.UintVar(&days, "days", dftDays, "expire in some days")
 	flag.BoolVar(&serv, "serv", false, "run as dns server")
 	flag.Parse()
 
