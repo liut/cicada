@@ -49,10 +49,16 @@ func main() {
 	flag.StringVar(&cfg.net, "net", "udp", "network: udp|tcp")
 	flag.Parse()
 
-	log.Info().Str("ver", version).Int("port", cfg.port).Msg("starting")
+	log.Info().Str("ver", version).
+		Str("net", cfg.net).Int("port", cfg.port).
+		Msg("starting")
 	if cfg.serv {
-		srv := &dns.Server{Addr: ":" + strconv.Itoa(cfg.port), Net: "udp"}
-		srv.Handler = NewMux(cfg.dsn)
+		h := NewMux(cfg.dsn)
+		srv := &dns.Server{
+			Addr:    ":" + strconv.Itoa(cfg.port),
+			Net:     cfg.net,
+			Handler: h,
+		}
 		go func() {
 			if err := srv.ListenAndServe(); err != nil {
 				log.Fatal().Err(err).Msg("fail to udp listen")
