@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/miekg/dns"
@@ -49,11 +51,20 @@ func main() {
 
 	log.Info().Str("ver", version).Int("port", cfg.port).Msg("starting")
 	if cfg.serv {
-		srv := &dns.Server{Addr: ":" + strconv.Itoa(cfg.port), Net: "udp"}
-		srv.Handler = NewMux(cfg.dsn)
-		if err := srv.ListenAndServe(); err != nil {
-			log.Fatal().Err(err).Msg("fail to udp listen")
-		}
+		go func() {
+			srv := &dns.Server{Addr: ":" + strconv.Itoa(cfg.port), Net: "udp"}
+			srv.Handler = NewMux(cfg.dsn)
+			defer srv.Shutdown() //nolint
+			if err := srv.ListenAndServe(); err != nil {
+				log.Fatal().Err(err).Msg("fail to udp listen")
+			}
+		}()
+		sig := make(chan os.Signal, 2)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		s := <-sig
+		log.Info().Msgf("signal (%d) received, stopping ", s)
+		<-time.After(time.Second * 2)
+
 	} else if len(cfg.name) == 0 || len(cfg.ip) == 0 {
 		flag.Usage()
 	} else {
