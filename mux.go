@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"strings"
@@ -136,8 +137,37 @@ func (h *mux) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 }
 
+type record struct {
+	Name string `json:"name"`
+	IP   string `json:"ip"`
+}
+
 func (h *mux) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// TODO: put a new A
+	if req.Method == http.MethodHead || req.Method == http.MethodGet {
+		rw.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if req.Method != http.MethodPut {
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	var records []record
+	err := json.NewDecoder(req.Body).Decode(&records)
+	if err != nil {
+		log.Info().Err(err).Msg("decode json fail")
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+	expiration := time.Hour * 24 * time.Duration(dftDays)
+	ttl := uint(60)
+	for _, rec := range records {
+		err := h.Set(NewA(rec.Name, rec.IP, ttl), expiration)
+		if err != nil {
+			log.Info().Err(err).Str("name", rec.Name).Str("ip", rec.IP).Msg("fail")
+		} else {
+			log.Info().Str("name", rec.Name).Str("ip", rec.IP).Msg("ok")
+		}
+	}
 }
 
 func NewA(name, ip string, ttl uint) *dns.A {

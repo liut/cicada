@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -53,21 +55,34 @@ func main() {
 		Str("net", cfg.net).Int("port", cfg.port).
 		Msg("starting")
 	if cfg.serv {
-		h := NewMux(cfg.dsn)
+		mux := NewMux(cfg.dsn)
 		srv := &dns.Server{
 			Addr:    ":" + strconv.Itoa(cfg.port),
 			Net:     cfg.net,
-			Handler: h,
+			Handler: mux,
+		}
+		hs := &http.Server{
+			Addr:           ":" + strconv.Itoa(cfg.port+1),
+			Handler:        mux,
+			ReadTimeout:    6 * time.Second,
+			WriteTimeout:   6 * time.Second,
+			MaxHeaderBytes: 1 << 18,
 		}
 		go func() {
 			if err := srv.ListenAndServe(); err != nil {
-				log.Fatal().Err(err).Msg("fail to udp listen")
+				log.Warn().Err(err).Msg("fail to dns listen")
+			}
+		}()
+		go func() {
+			if err := hs.ListenAndServe(); err != nil {
+				log.Warn().Err(err).Msg("fail to http listen")
 			}
 		}()
 		sig := make(chan os.Signal, 2)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		s := <-sig
-		srv.Shutdown() //nolint
+		go srv.Shutdown()                    //nolint
+		go hs.Shutdown(context.Background()) //nolint
 		log.Info().Msgf("signal (%d) received, stopping ", s)
 		<-time.After(time.Second * 2)
 
