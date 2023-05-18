@@ -168,6 +168,8 @@ func (h *mux) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			log.Info().Str("name", rec.Name).Str("ip", rec.IP).Msg("ok")
 		}
 	}
+	rw.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	rw.Write([]byte("ok\n"))
 }
 
 func NewA(name, ip string, ttl uint) *dns.A {

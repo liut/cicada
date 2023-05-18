@@ -34,4 +34,7 @@ quit
 " | nsupdate -d
 
 
+# update with http PUT
+curl -X PUT -H "Content-Type: application/json" -d '[{"name":"feature-dev.mycom.work","ip":"172.18.19.5"}]' http://localhost:1153/api/dns/a
+
 ```
