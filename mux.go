@@ -35,7 +35,7 @@ const (
 )
 
 func getKey(name string, rtype uint16) string {
-	return prefix + typeToString(rtype) + "-" + strings.TrimRight(name, ".")
+	return prefix + typeToString(rtype) + "-" + strings.ToLower(strings.TrimRight(name, "."))
 }
 
 func typeToString(rtype uint16) string {
