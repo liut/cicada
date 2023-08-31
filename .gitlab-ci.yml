@@ -64,7 +64,8 @@ build-binary:
     - mkdir -p dist/linux_amd64
     - go build -ldflags "${LDFLAGS} -s -w" -o dist/linux_amd64/${NAME} ${CI_PROJECT_DIR}
   artifacts:
-  #   name: "${CI_PROJECT_PATH_SLUG}_${CI_JOB_ID}"
+    expire_in: 2 days
+    name: "${CI_PROJECT_PATH_SLUG}_${CI_JOB_ID}"
     paths:
       - dist
 
