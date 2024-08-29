@@ -18,15 +18,15 @@ make dist
 ./cicada -name feature-dev.mycom.work -ip 172.18.19.3 -days 10
 
 # start dns server
-./cicada -serv -port=1153
+./cicada -serv -port=1353
 
 
 # test
-dig @127.0.0.1 -p 1153 feature-dev.mycom.work
+dig @127.0.0.1 -p 1353 feature-dev.mycom.work
 
 
 # update with nsupdate
-echo "server 127.0.0.1 1153
+echo "server 127.0.0.1 1353
 zone mycom.work.
 update add feature-dev.mycom.work. 180 IN A 172.18.19.4
 send
@@ -35,6 +35,6 @@ quit
 
 
 # update with http PUT
-curl -X PUT -H "Content-Type: application/json" -d '[{"name":"feature-dev.mycom.work","ip":"172.18.19.5"}]' http://localhost:1153/api/dns/a
+curl -X PUT -H "Content-Type: application/json" -d '[{"name":"feature-dev.mycom.work","ip":"172.18.19.5"}]' http://localhost:1354/api/dns/a
 
 ```
