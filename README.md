@@ -1,6 +1,6 @@
 # Cicada
 
-A dns server for CI/CD
+A simple DNS server, which uses Redis as its underlying storage, enables easy specification of DNS record's validity period. It is primarily used for CI/CD environments.
 
 
 ## Getting started
@@ -35,6 +35,9 @@ quit
 
 
 # update with http PUT
-curl -X PUT -H "Content-Type: application/json" -d '[{"name":"feature-dev.mycom.work","ip":"172.18.19.5"}]' http://localhost:1354/api/dns/a
+curl -X PUT \
+  -H "Content-Type: application/json" \
+  -d '[{"name":"feature-dev.mycom.work","ip":"172.18.19.5"}]' \
+  http://localhost:1354/api/dns/a
 
 ```
