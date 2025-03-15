@@ -112,8 +112,8 @@ $RECYCLE.BIN/
 
 dist/
 
-cidns
-*.cidns.*
+cicada
+*.cicada.*
 *.tar.*
 .env
 tests/
